@@ -9,10 +9,10 @@ class TemperAT05 < Formula
   if OS.mac?
     depends_on arch: :arm64
     url "https://github.com/tasker-systems/temper/releases/download/v0.5.1/temper-v0.5.1-aarch64-apple-darwin.tar.gz"
-    sha256 "420e9d7deeb74f9c6cbc11e37e4213921a1756e808a5a8188dc94728356f9968"
+    sha256 "a4870d46b72f5cbce2025dda5b161863567d5e1c6b7fb32012c3dca345dad55c"
   else
     url "https://github.com/tasker-systems/temper/releases/download/v0.5.1/temper-v0.5.1-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "7e1cfad7a47135d9a12ea6ea934f1989af48b75547f76edff48597d694822835"
+    sha256 "54539f9872e66dd983de8ff58ad107bbc5ee94f12eff86edfd987e8983584b09"
   end
 
   # The release's own per-triple manifests, inlined at render time from the
@@ -48,8 +48,8 @@ class TemperAT05 < Formula
         },
         {
           "path": "temper",
-          "sha256": "a6e179501aa586a9e4fa8590d4b248c90c2d0f643f87bce31da2c56bcc6f6ad1",
-          "size": 29938896
+          "sha256": "e8b0d8594974f1a30f876f918f775b3d2c51f8ef4e3210fd50fcefc8ce460ab3",
+          "size": 30005344
         }
       ]
     }
@@ -81,8 +81,8 @@ class TemperAT05 < Formula
         },
         {
           "path": "temper",
-          "sha256": "01b6e410fba4a136472c455d770f4d05214bb5c864f16a8240d74db54195600a",
-          "size": 37675904
+          "sha256": "f5bc317dcc1ba701263e494d13cd774607ec18e1925e4f87a30a1de3aa748f48",
+          "size": 37702752
         }
       ]
     }
