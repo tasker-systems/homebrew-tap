@@ -24,7 +24,7 @@ jobs:
           ln -s "$PWD" "$TAPS/homebrew-tap"
 
       - name: brew style
-        run: brew style --formula Formula/*.rb
+        run: brew style tasker-systems/tap
 
       - name: brew readall (every formula parses, aliases resolve)
         run: brew readall tasker-systems/tap
