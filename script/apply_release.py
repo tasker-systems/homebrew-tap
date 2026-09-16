@@ -37,6 +37,46 @@ def sha256_file(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def archive_temper_sha(archive: pathlib.Path) -> str:
+    """sha256 of the archive's `temper` member, read without extracting the
+    whole tree — the one file whose integrity a pinned fleet most depends on."""
+    import tarfile
+
+    with tarfile.open(archive, "r:gz") as tf:
+        # Release archives are created with `tar -C <stage> .`, so members are
+        # named `./temper` — match on the normalized name.
+        member = next(
+            (m for m in tf.getmembers() if m.isfile() and m.name.removeprefix("./") == "temper"),
+            None,
+        )
+        if member is None:
+            sys.exit(f"error: {archive.name} carries no `temper` member")
+        return hashlib.sha256(tf.extractfile(member).read()).hexdigest()
+
+
+def require_coherent_pair(archive: pathlib.Path, manifest_text: str, label: str) -> None:
+    """The v0.5.1 smoke lesson: a re-cut can publish an archive and a manifest
+    from DIFFERENT build generations. install.sh refuses such a pair at
+    install; brew installs would silently plant it and fail `version --verify`
+    afterwards. The feeder therefore verifies the pair BEFORE pinning it."""
+    import json
+
+    entry = next(
+        (e for e in json.loads(manifest_text)["files"] if e["path"] == "temper"), None
+    )
+    if entry is None:
+        sys.exit(f"error: the {label} manifest names no `temper` file")
+    actual = archive_temper_sha(archive)
+    if actual != entry["sha256"]:
+        sys.exit(
+            f"error: the {label} pair is INCOHERENT — its manifest says "
+            f"temper={entry['sha256']} but the archive's temper is {actual}. "
+            f"The release's own assets disagree with each other; pinning them "
+            f"would ship a verify-breaking install. Re-run the release and "
+            f"re-apply once its own pair is coherent."
+        )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", required=True)  # M.m.p
@@ -60,6 +100,9 @@ def main() -> int:
     linux_manifest_text = args.linux_manifest.read_text()
     mac_manifest_sha = hashlib.sha256(mac_manifest_text.encode()).hexdigest()
     linux_manifest_sha = hashlib.sha256(linux_manifest_text.encode()).hexdigest()
+
+    require_coherent_pair(args.mac_archive, mac_manifest_text, "macos-arm64")
+    require_coherent_pair(args.linux_archive, linux_manifest_text, "linux-x64")
 
     new_minor = not formula.exists()
     text = render_formula.render(
