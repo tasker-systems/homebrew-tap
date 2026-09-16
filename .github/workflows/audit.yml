@@ -1,0 +1,33 @@
+name: audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  formula:
+    name: Style, parse, and audit the formulae
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - name: Checkout the tap
+        uses: actions/checkout@v7
+
+      - name: Install the tap locally (symlink — no network tap fetch)
+        run: |
+          TAPS="$(brew --repository)/Library/Taps/tasker-systems"
+          mkdir -p "$TAPS"
+          ln -s "$PWD" "$TAPS/homebrew-tap"
+
+      - name: brew style
+        run: brew style --formula Formula/*.rb
+
+      - name: brew readall (every formula parses, aliases resolve)
+        run: brew readall tasker-systems/tap
+
+      - name: brew audit (offline, strict)
+        run: brew audit --strict tasker-systems/tap
