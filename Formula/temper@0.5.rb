@@ -12,7 +12,7 @@ class TemperAT05 < Formula
     sha256 "a4870d46b72f5cbce2025dda5b161863567d5e1c6b7fb32012c3dca345dad55c"
   else
     url "https://github.com/tasker-systems/temper/releases/download/v0.5.1/temper-v0.5.1-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "54539f9872e66dd983de8ff58ad107bbc5ee94f12eff86edfd987e8983584b09"
+    sha256 "7e1cfad7a47135d9a12ea6ea934f1989af48b75547f76edff48597d694822835"
   end
 
   # The release's own per-triple manifests, inlined at render time from the
@@ -81,8 +81,8 @@ class TemperAT05 < Formula
         },
         {
           "path": "temper",
-          "sha256": "f5bc317dcc1ba701263e494d13cd774607ec18e1925e4f87a30a1de3aa748f48",
-          "size": 37702752
+          "sha256": "01b6e410fba4a136472c455d770f4d05214bb5c864f16a8240d74db54195600a",
+          "size": 37675904
         }
       ]
     }
