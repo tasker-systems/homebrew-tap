@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# CI runners are ephemeral, so `brew trust` cannot persist; the env var is the
+# deliberate form of the same grant (brew sets it implicitly with a
+# deprecation warning otherwise).
+env:
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
+
 jobs:
   formula:
     name: Style, parse, and audit the formulae
@@ -29,5 +35,13 @@ jobs:
       - name: brew readall (every formula parses, aliases resolve)
         run: brew readall tasker-systems/tap
 
+      # `brew audit` takes formula references, not a tap name — a two-segment
+      # `tasker-systems/tap` parses as formula "tap" in tap "tasker-systems".
+      # Iterate the formula files so a new minor needs no workflow edit.
       - name: brew audit (offline, strict)
-        run: brew audit --strict tasker-systems/tap
+        run: |
+          for f in Formula/*.rb; do
+            name="$(basename "$f" .rb)"
+            echo "== auditing $name =="
+            brew audit --strict "tasker-systems/tap/$name"
+          done
