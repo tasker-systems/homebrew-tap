@@ -89,7 +89,9 @@ def main() -> int:
         print(f"updating {formula.name} in place ({args.version})")
         formula.write_text(text)
 
-    subprocess.run(["git", "-C", str(tap), "add", "-A"], check=True)
+    # Narrow add — never a bare `-A`: an import of render_formula drops a
+    # script/__pycache__/ into the tree, and a blind sweep commits it.
+    subprocess.run(["git", "-C", str(tap), "add", "Formula", "aliases"], check=True)
     subprocess.run(
         [
             "git",
