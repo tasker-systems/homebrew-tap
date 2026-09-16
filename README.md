@@ -37,10 +37,14 @@ updater here. `temper update --check` still reports what's newer.
 
 ## Verification
 
-`temper version --verify` works identically on brew installs: the formula installs the
-release's own per-file manifest as `.temper-manifest.json` beside the tree, so the
-digests are the release's own bytes — the signing chain survives the brew hop without
-drift.
+- **Offline** — `temper version --verify` proves the installed tree matches what brew
+  installed: the formula computes `.temper-manifest.json` from the ACTUAL installed files
+  at post-install (Homebrew re-signs Mach-O and relocates metadata at keg finalization,
+  so the release's own pre-install manifest cannot describe the keg byte-for-byte).
+- **Online** — `temper version --verify --online` on a brew install reports the boundary
+  honestly (`unverifiable`): artifact provenance here is brew's own chain — the formula
+  pins the release's archive digest, verified by brew at download — and temper's
+  attestation check describes the script-installer path.
 
 ## How releases feed this tap
 

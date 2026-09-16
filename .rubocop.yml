@@ -1,0 +1,10 @@
+# Tap-local style policy. The declarative post_install_steps DSL (brew 7) can
+# only move/copy/write fixed content; the manifest this tap plants must be
+# computed from the ACTUAL installed tree (Homebrew re-signs Mach-O with
+# per-install random identifiers at keg finalization), which requires the
+# classic `def post_install` hook. See template/temper@MINOR.rb.template's
+# post_install comment.
+Homebrew/FormulaAudit/InstallSteps:
+  Enabled: false
+FormulaAudit/InstallSteps:
+  Enabled: false

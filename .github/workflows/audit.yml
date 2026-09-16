@@ -29,8 +29,26 @@ jobs:
           mkdir -p "$TAPS"
           ln -s "$PWD" "$TAPS/homebrew-tap"
 
-      - name: brew style
-        run: brew style tasker-systems/tap
+      # One deliberate waiver, named inline: FormulaAudit/InstallSteps demands
+      # the declarative post_install_steps DSL, which cannot compute the
+      # post-install manifest this tap's formula plants (see
+      # .rubocop.yml and the template's post_install comment). Any OTHER
+      # offense fails the step.
+      - name: brew style (waiving FormulaAudit/InstallSteps — see .rubocop.yml)
+        run: |
+          set -o pipefail
+          brew style tasker-systems/tap 2>&1 | tee style.log || true
+          TOTAL=$(grep -cE ": (C|W|E): " style.log || true)
+          WAIVED=$(grep -c "FormulaAudit/InstallSteps" style.log || true)
+          echo "offenses: total=$TOTAL waived=$WAIVED"
+          if [ "$TOTAL" != "$WAIVED" ]; then
+            echo "::error::unwaived style offenses detected"
+            exit 1
+          fi
+          if [ "$WAIVED" = "0" ] && [ "$(grep -c 'no offenses\|inspected' style.log)" = "0" ]; then
+            echo "::error::style produced no verdict"
+            exit 1
+          fi
 
       - name: brew readall (every formula parses, aliases resolve)
         run: brew readall tasker-systems/tap

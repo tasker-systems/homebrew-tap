@@ -15,96 +15,59 @@ class TemperAT05 < Formula
     sha256 "54539f9872e66dd983de8ff58ad107bbc5ee94f12eff86edfd987e8983584b09"
   end
 
-  # The release's own per-triple manifests, inlined at render time from the
-  # release assets (parse-checked, never re-formatted). The one matching this
-  # OS is installed as `.temper-manifest.json` beside the tree — the same
-  # baseline install.sh writes — so `temper version --verify` reads identical
-  # digests on script and brew channels. The contents are the release's own
-  # bytes; the render-time digest echo keeps them from ever drifting.
-  MAC_MANIFEST = <<~MANIFEST.freeze
-    {
-      "version": "0.5.1",
-      "target": "aarch64-apple-darwin",
-      "files": [
-        {
-          "path": "LICENSE",
-          "sha256": "85860ec4384c14c5f0d197c87c8d65dbff74608951bee3b9c10785037a94a97b",
-          "size": 1071
-        },
-        {
-          "path": "README-INSTALL.txt",
-          "sha256": "2cd8c9a2af047b4a6f5bbc3d765c67bd242bda1cb3ed1df08ca3144e96be39a5",
-          "size": 353
-        },
-        {
-          "path": "lib/libonnxruntime.dylib",
-          "sha256": "87df6f94dd559ea958748adc80fd4c46d91c52bc025771f513291d155539590a",
-          "size": 35361512
-        },
-        {
-          "path": "models/model_quantized.onnx",
-          "sha256": "c9729cc84cbd0e9fecc759505d2be65916c9fe05222d7ea26c65fcb3382af38d",
-          "size": 110083337
-        },
-        {
-          "path": "temper",
-          "sha256": "e8b0d8594974f1a30f876f918f775b3d2c51f8ef4e3210fd50fcefc8ce460ab3",
-          "size": 30005344
-        }
-      ]
-    }
-  MANIFEST
-  LINUX_MANIFEST = <<~MANIFEST.freeze
-    {
-      "version": "0.5.1",
-      "target": "x86_64-unknown-linux-gnu",
-      "files": [
-        {
-          "path": "LICENSE",
-          "sha256": "85860ec4384c14c5f0d197c87c8d65dbff74608951bee3b9c10785037a94a97b",
-          "size": 1071
-        },
-        {
-          "path": "README-INSTALL.txt",
-          "sha256": "8377353e31f3a2dfaa823dd8ddee2180a2e966091c930204098ef81b22c6f32b",
-          "size": 357
-        },
-        {
-          "path": "lib/libonnxruntime.so",
-          "sha256": "ffc84d48e845cf0b562ba4ea5ca32aaafc0d4069019fef4f63095b307d0270ad",
-          "size": 22065056
-        },
-        {
-          "path": "models/model_quantized.onnx",
-          "sha256": "c9729cc84cbd0e9fecc759505d2be65916c9fe05222d7ea26c65fcb3382af38d",
-          "size": 110083337
-        },
-        {
-          "path": "temper",
-          "sha256": "f5bc317dcc1ba701263e494d13cd774607ec18e1925e4f87a30a1de3aa748f48",
-          "size": 37702752
-        }
-      ]
-    }
-  MANIFEST
-
   def install
-    # The whole archive tree installs under libexec and only `temper` is
-    # symlinked into bin. The binary self-locates ONNX Runtime and the
-    # embedding model beside a symlink-resolved exe, and `temper version
-    # --verify` checks every entry of `.temper-manifest.json` against the
-    # install tree — so the install must be the WHOLE manifest set, exactly
-    # as install.sh extracts it. If a release archive grows a file, verify
-    # fails loudly until this template's install list follows; silent
-    # omission would be drift. Shape rationale: template/README.md.
+    # The tree root is `libexec` — deliberately NOT the keg root: brew links
+    # keg-root `lib/` into the prefix, and a bundled dylib there collides with
+    # any onnxruntime formula. Only `temper` is symlinked into bin; the binary
+    # self-locates its dylib and model beside a symlink-resolved exe.
     libexec.install "temper", "lib", "models", "LICENSE", "README-INSTALL.txt"
-    (libexec/".temper-manifest.json").write(OS.mac? ? MAC_MANIFEST : LINUX_MANIFEST)
     (libexec/"BREW-MANAGED").write <<~MARKER
       This temper install is managed by Homebrew.
       Update with: brew upgrade tasker-systems/tap/temper@0.5
       `temper update` refuses here on purpose: this binary is not authoritative for its own update.
     MARKER
     bin.install_symlink libexec/"temper"
+  end
+
+  def post_install
+    require "digest"
+    require "fileutils"
+    require "json"
+
+    # Homebrew relocates recognized metadata (LICENSE) to the keg root and
+    # finalizes Mach-O files (dynamic-linkage fixups + ad-hoc re-signing with
+    # per-install random identifiers) BEFORE this hook runs. The release
+    # manifest describes pre-install bytes and would mismatch forever; this
+    # manifest is computed from the tree AS INSTALLED, which is exactly what
+    # offline `temper version --verify` should prove: nothing has drifted
+    # since brew installed it. Artifact provenance stays with brew's own
+    # chain — the formula pins the release's archive digest, verified at
+    # download. `temper version --verify --online` on a brew install reports
+    # that boundary rather than comparing transformed bytes against published
+    # ones.
+    FileUtils.cp(prefix/"LICENSE", libexec/"LICENSE")
+
+    files = Dir.glob("#{libexec}/**/*")
+               .select { |p| File.file?(p) }
+               .sort
+               .filter_map do |p|
+                 rel = Pathname.new(p).relative_path_from(libexec).to_s
+                 next if [".temper-manifest.json", "BREW-MANAGED"].include?(rel)
+
+                 {
+                   "path"    => rel,
+                   "sha256"  => Digest::SHA256.file(p).hexdigest,
+                   "size"    => File.size(p),
+                 }
+               end
+
+    (libexec/".temper-manifest.json").write(
+      JSON.pretty_generate({
+        "version" => version.to_s,
+        "target"  => OS.mac? ? "aarch64-apple-darwin" : "x86_64-unknown-linux-gnu",
+        "files"   => files,
+      }) + "\n",
+    )
   end
 
   test do

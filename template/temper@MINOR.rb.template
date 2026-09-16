@@ -15,36 +15,59 @@ class @FORMULA_CLASS@ < Formula
     sha256 "@LINUX_SHA@"
   end
 
-  # The release's own per-triple manifests, inlined at render time from the
-  # release assets (parse-checked, never re-formatted). The one matching this
-  # OS is installed as `.temper-manifest.json` beside the tree — the same
-  # baseline install.sh writes — so `temper version --verify` reads identical
-  # digests on script and brew channels. The contents are the release's own
-  # bytes; the render-time digest echo keeps them from ever drifting.
-  MAC_MANIFEST = <<~MANIFEST.freeze
-@MAC_MANIFEST_CONTENTS@
-  MANIFEST
-  LINUX_MANIFEST = <<~MANIFEST.freeze
-@LINUX_MANIFEST_CONTENTS@
-  MANIFEST
-
   def install
-    # The whole archive tree installs under libexec and only `temper` is
-    # symlinked into bin. The binary self-locates ONNX Runtime and the
-    # embedding model beside a symlink-resolved exe, and `temper version
-    # --verify` checks every entry of `.temper-manifest.json` against the
-    # install tree — so the install must be the WHOLE manifest set, exactly
-    # as install.sh extracts it. If a release archive grows a file, verify
-    # fails loudly until this template's install list follows; silent
-    # omission would be drift. Shape rationale: template/README.md.
+    # The tree root is `libexec` — deliberately NOT the keg root: brew links
+    # keg-root `lib/` into the prefix, and a bundled dylib there collides with
+    # any onnxruntime formula. Only `temper` is symlinked into bin; the binary
+    # self-locates its dylib and model beside a symlink-resolved exe.
     libexec.install "temper", "lib", "models", "LICENSE", "README-INSTALL.txt"
-    (libexec/".temper-manifest.json").write(OS.mac? ? MAC_MANIFEST : LINUX_MANIFEST)
     (libexec/"BREW-MANAGED").write <<~MARKER
       This temper install is managed by Homebrew.
       Update with: brew upgrade tasker-systems/tap/@FORMULA_NAME@
       `temper update` refuses here on purpose: this binary is not authoritative for its own update.
     MARKER
     bin.install_symlink libexec/"temper"
+  end
+
+  def post_install
+    require "digest"
+    require "fileutils"
+    require "json"
+
+    # Homebrew relocates recognized metadata (LICENSE) to the keg root and
+    # finalizes Mach-O files (dynamic-linkage fixups + ad-hoc re-signing with
+    # per-install random identifiers) BEFORE this hook runs. The release
+    # manifest describes pre-install bytes and would mismatch forever; this
+    # manifest is computed from the tree AS INSTALLED, which is exactly what
+    # offline `temper version --verify` should prove: nothing has drifted
+    # since brew installed it. Artifact provenance stays with brew's own
+    # chain — the formula pins the release's archive digest, verified at
+    # download. `temper version --verify --online` on a brew install reports
+    # that boundary rather than comparing transformed bytes against published
+    # ones.
+    FileUtils.cp(prefix/"LICENSE", libexec/"LICENSE")
+
+    files = Dir.glob("#{libexec}/**/*")
+               .select { |p| File.file?(p) }
+               .sort
+               .filter_map do |p|
+                 rel = Pathname.new(p).relative_path_from(libexec).to_s
+                 next if [".temper-manifest.json", "BREW-MANAGED"].include?(rel)
+
+                 {
+                   "path"    => rel,
+                   "sha256"  => Digest::SHA256.file(p).hexdigest,
+                   "size"    => File.size(p),
+                 }
+               end
+
+    (libexec/".temper-manifest.json").write(
+      JSON.pretty_generate({
+        "version" => version.to_s,
+        "target"  => OS.mac? ? "aarch64-apple-darwin" : "x86_64-unknown-linux-gnu",
+        "files"   => files,
+      }) + "\n",
+    )
   end
 
   test do

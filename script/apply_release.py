@@ -5,7 +5,14 @@ Called by the temper release chain's `update-homebrew-tap` job (D-H4) after
 the GitHub Release is published. Everything variable comes from the release's
 own artifacts, whose bytes the caller downloads and hands over; the archive
 sha256s are computed HERE from those bytes, never taken from a sidecar on
-faith.
+faith. The release's manifest assets are checked for coherence against the
+archives (manifest-vs-binary digests must agree) before anything is pinned —
+the v0.5.1 smoke caught a re-cut publishing mixed-generation assets; the tap
+never pins an incoherent pair. The planted manifest itself is NOT the release
+asset: the formula computes it post-install from the actual installed tree
+(Homebrew transforms Mach-O at keg finalization), so what `temper version
+--verify` proves offline is this-install self-consistency, and provenance
+stays with brew's formula digest.
 
 Idempotent by ruling (E): applying an already-applied version renders the
 committed formula byte-for-byte and commits nothing — the job skips the push.
@@ -105,9 +112,7 @@ def main() -> int:
     require_coherent_pair(args.linux_archive, linux_manifest_text, "linux-x64")
 
     new_minor = not formula.exists()
-    text = render_formula.render(
-        args.version, mac_sha, linux_sha, mac_manifest_text, linux_manifest_text
-    )
+    text = render_formula.render(args.version, mac_sha, linux_sha)
 
     if new_minor:
         if minor == "0.5":
