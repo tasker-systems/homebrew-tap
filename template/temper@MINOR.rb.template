@@ -1,0 +1,53 @@
+# Rendered by script/render_formula.py from template/temper@MINOR.rb.template — do not edit by hand.
+class @FORMULA_CLASS@ < Formula
+  desc "@DESC@"
+  homepage "https://github.com/tasker-systems/temper"
+  license "MIT"
+
+  # Release CI builds darwin-arm64 only (build-cli-binaries.yml); Intel macs
+  # and Windows stay on the script installers.
+  if OS.mac?
+    depends_on arch: :arm64
+    url "@MAC_URL@"
+    sha256 "@MAC_SHA@"
+  else
+    url "@LINUX_URL@"
+    sha256 "@LINUX_SHA@"
+  end
+
+  # The release's own per-triple manifests, inlined at render time from the
+  # release assets (parse-checked, never re-formatted). The one matching this
+  # OS is installed as `.temper-manifest.json` beside the tree — the same
+  # baseline install.sh writes — so `temper version --verify` reads identical
+  # digests on script and brew channels. The contents are the release's own
+  # bytes; the render-time digest echo keeps them from ever drifting.
+  MAC_MANIFEST = <<~MANIFEST.freeze
+@MAC_MANIFEST_CONTENTS@
+  MANIFEST
+  LINUX_MANIFEST = <<~MANIFEST.freeze
+@LINUX_MANIFEST_CONTENTS@
+  MANIFEST
+
+  def install
+    # The whole archive tree installs under libexec and only `temper` is
+    # symlinked into bin. The binary self-locates ONNX Runtime and the
+    # embedding model beside a symlink-resolved exe, and `temper version
+    # --verify` checks every entry of `.temper-manifest.json` against the
+    # install tree — so the install must be the WHOLE manifest set, exactly
+    # as install.sh extracts it. If a release archive grows a file, verify
+    # fails loudly until this template's install list follows; silent
+    # omission would be drift. Shape rationale: template/README.md.
+    libexec.install "temper", "lib", "models", "LICENSE", "README-INSTALL.txt"
+    (libexec/".temper-manifest.json").write(OS.mac? ? MAC_MANIFEST : LINUX_MANIFEST)
+    (libexec/"BREW-MANAGED").write <<~MARKER
+      This temper install is managed by Homebrew.
+      Update with: brew upgrade tasker-systems/tap/@FORMULA_NAME@
+      `temper update` refuses here on purpose: this binary is not authoritative for its own update.
+    MARKER
+    bin.install_symlink libexec/"temper"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/temper version")
+  end
+end
