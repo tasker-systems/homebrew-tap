@@ -59,3 +59,4 @@ workflow applies every release automatically; a new minor also moves the `temper
 | Formula | Wire contract | Since |
 |---|---|---|
 | `temper@0.5` | pin `schemas/versions/0.5/` | v0.5.1 (seeded) |
+| `temper@0.6` | pin `schemas/versions/0.6/` | v0.6.0 |
