@@ -8,14 +8,26 @@ contract.
 ## Install
 
 ```sh
-brew install tasker-systems/tap/temper@0.5   # pinned to the 0.5 wire contract
+brew install tasker-systems/tap/temper@0.6   # pinned to the 0.6 wire contract
+```
+
+Homebrew loads a third-party tap's formulae only once they are trusted. Installing or
+upgrading by the **full versioned name** grants that trust for the one formula — no
+`brew trust` step.
+
+The `temper` alias is the exception: Homebrew's install-time trust matches formula names,
+and an alias is not one, so the alias refuses until its target is trusted — and the trust
+does not follow the alias to the next minor. Trust the tap once to use it:
+
+```sh
+brew trust tasker-systems/tap                # once — covers every formula, and the alias
 brew install tasker-systems/tap/temper       # alias — the current minor only
 ```
 
-Fleet pinning is a Brewfile line:
+Fleet pinning is a Brewfile line; `trusted: true` has `brew bundle` grant the trust:
 
 ```ruby
-brew "tasker-systems/tap/temper@0.5"
+brew "tasker-systems/tap/temper@0.6", trusted: true
 ```
 
 The `temper` alias moves only when a new minor's formula lands, so the alias
@@ -28,6 +40,7 @@ floats per-minor, never per-patch.
   and the formula updates in place with the release's own digests.
 - **Minors** (`0.5 → 0.6`): a NEW formula appears (`temper@0.6`). Moving your Brewfile to
   it is a deliberate edit — the same deliberate, signaled act the M bump is on the wire.
+  Trust is per formula, so install the new one by its full name (or carry `trusted: true`).
 
 ## `temper update` on a brew install
 

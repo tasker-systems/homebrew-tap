@@ -8,12 +8,6 @@ on:
 permissions:
   contents: read
 
-# CI runners are ephemeral, so `brew trust` cannot persist; the env var is the
-# deliberate form of the same grant (brew sets it implicitly with a
-# deprecation warning otherwise).
-env:
-  HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
-
 jobs:
   formula:
     name: Style, parse, and audit the formulae
@@ -28,6 +22,12 @@ jobs:
           TAPS="$(brew --repository)/Library/Taps/tasker-systems"
           mkdir -p "$TAPS"
           ln -s "$PWD" "$TAPS/homebrew-tap"
+
+      # Homebrew refuses to load an untrusted third-party tap. The grant only
+      # has to outlive this job, so an ephemeral runner trusts it here — not
+      # via HOMEBREW_NO_REQUIRE_TAP_TRUST, which brew deprecates for removal.
+      - name: Trust the tap
+        run: brew trust --tap tasker-systems/tap
 
       # One deliberate waiver, named inline: FormulaAudit/InstallSteps demands
       # the declarative post_install_steps DSL, which cannot compute the
@@ -50,8 +50,16 @@ jobs:
             exit 1
           fi
 
+      # An untrusted tap is SKIPPED with a warning and exit 0 — a vacuous pass.
+      # Refuse that, so a lost trust grant fails here instead of reading nothing.
       - name: brew readall (every formula parses, aliases resolve)
-        run: brew readall tasker-systems/tap
+        run: |
+          set -o pipefail
+          brew readall tasker-systems/tap 2>&1 | tee readall.log
+          if grep -q "not trusted" readall.log; then
+            echo "::error::readall skipped the tap as untrusted — nothing was read"
+            exit 1
+          fi
 
       # `brew audit` takes formula references, not a tap name — a two-segment
       # `tasker-systems/tap` parses as formula "tap" in tap "tasker-systems".
