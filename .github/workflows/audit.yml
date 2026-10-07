@@ -34,19 +34,35 @@ jobs:
       # post-install manifest this tap's formula plants (see
       # .rubocop.yml and the template's post_install comment). Any OTHER
       # offense fails the step.
+      #
+      # On Actions brew style prints in COLOR, so `: C: ` arrives wrapped in
+      # escapes and an offense grep over the log counts zero — this step once
+      # passed with 8 offenses on screen. HOMEBREW_NO_COLOR outranks every
+      # color setting in brew's Tty.color?. RuboCop's own summary must also
+      # parse as PLAIN text ("N files inspected, M offenses detected") and M
+      # must equal the per-line count — color or any other format drift
+      # breaks that parse and fails here, instead of counting zero.
       - name: brew style (waiving FormulaAudit/InstallSteps — see .rubocop.yml)
+        env:
+          HOMEBREW_NO_COLOR: "1"
         run: |
           set -o pipefail
           brew style tasker-systems/tap 2>&1 | tee style.log || true
           TOTAL=$(grep -cE ": (C|W|E): " style.log || true)
           WAIVED=$(grep -c "FormulaAudit/InstallSteps" style.log || true)
-          echo "offenses: total=$TOTAL waived=$WAIVED"
-          if [ "$TOTAL" != "$WAIVED" ]; then
-            echo "::error::unwaived style offenses detected"
+          SUMMARY=$(sed -nE 's/^[0-9]+ files? inspected, (no|[0-9]+) offenses? detected.*/\1/p' style.log | tail -1)
+          echo "offenses: total=$TOTAL waived=$WAIVED summary=${SUMMARY:-<unparsed>}"
+          if [ -z "$SUMMARY" ]; then
+            echo "::error::no plain-text rubocop summary in the log — no verdict to trust"
             exit 1
           fi
-          if [ "$WAIVED" = "0" ] && [ "$(grep -c 'no offenses\|inspected' style.log)" = "0" ]; then
-            echo "::error::style produced no verdict"
+          [ "$SUMMARY" = "no" ] && SUMMARY=0
+          if [ "$SUMMARY" != "$TOTAL" ]; then
+            echo "::error::counted $TOTAL offense lines but rubocop reports $SUMMARY — the log format moved"
+            exit 1
+          fi
+          if [ "$TOTAL" != "$WAIVED" ]; then
+            echo "::error::unwaived style offenses detected"
             exit 1
           fi
 
