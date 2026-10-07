@@ -31,7 +31,6 @@ class TemperAT06 < Formula
 
   def post_install
     require "digest"
-    require "fileutils"
     require "json"
 
     # Homebrew relocates recognized metadata (LICENSE) to the keg root and
@@ -45,7 +44,7 @@ class TemperAT06 < Formula
     # download. `temper version --verify --online` on a brew install reports
     # that boundary rather than comparing transformed bytes against published
     # ones.
-    FileUtils.cp(prefix/"LICENSE", libexec/"LICENSE")
+    cp(prefix/"LICENSE", libexec/"LICENSE")
 
     files = Dir.glob("#{libexec}/**/*")
                .select { |p| File.file?(p) }
@@ -55,9 +54,9 @@ class TemperAT06 < Formula
                  next if [".temper-manifest.json", "BREW-MANAGED"].include?(rel)
 
                  {
-                   "path"    => rel,
-                   "sha256"  => Digest::SHA256.file(p).hexdigest,
-                   "size"    => File.size(p),
+                   "path"   => rel,
+                   "sha256" => Digest::SHA256.file(p).hexdigest,
+                   "size"   => File.size(p),
                  }
                end
 
