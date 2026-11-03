@@ -8,11 +8,11 @@ class TemperAT06 < Formula
   # and Windows stay on the script installers.
   if OS.mac?
     depends_on arch: :arm64
-    url "https://github.com/tasker-systems/temper/releases/download/v0.6.3/temper-v0.6.3-aarch64-apple-darwin.tar.gz"
-    sha256 "57a25ed2d42d24409efe54b76287e02ef0cdb4595c64b457a9d898daf9d09dd0"
+    url "https://github.com/tasker-systems/temper/releases/download/v0.6.4/temper-v0.6.4-aarch64-apple-darwin.tar.gz"
+    sha256 "2169000ad2cc7ebc496021b231e7b1f95ec9f064664095d3af7ed20fe7e8252d"
   else
-    url "https://github.com/tasker-systems/temper/releases/download/v0.6.3/temper-v0.6.3-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "917ece843a2cf1014558d2067ab0946af31298771cb3adc9b0c84ec7e9041b01"
+    url "https://github.com/tasker-systems/temper/releases/download/v0.6.4/temper-v0.6.4-x86_64-unknown-linux-gnu.tar.gz"
+    sha256 "f9e4da1226fb1b231c06955b8fc1104f324b76fbebcdd4c8534871b2c7997fff"
   end
 
   def install
